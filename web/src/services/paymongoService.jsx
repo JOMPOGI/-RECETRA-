@@ -6,8 +6,8 @@
 class PayMongoService {
   constructor() {
     this.baseURL = 'https://api.paymongo.com/v1';
-    this.secretKey = process.env.REACT_APP_PAYMONGO_SECRET_KEY;
-    this.publicKey = process.env.REACT_APP_PAYMONGO_PUBLIC_KEY;
+    this.secretKey = import.meta.env.VITE_PAYMONGO_SECRET_KEY;
+    this.publicKey = import.meta.env.VITE_PAYMONGO_PUBLIC_KEY;
     
     if (!this.secretKey || !this.publicKey) {
       console.warn('⚠️ PayMongo API keys not found. Please set REACT_APP_PAYMONGO_SECRET_KEY and REACT_APP_PAYMONGO_PUBLIC_KEY in your environment variables.');
@@ -112,6 +112,194 @@ class PayMongoService {
         error: error.message,
         message: 'Failed to create payment intent'
       };
+    }
+  }
+
+  /**
+   * Creates a PayMongo source (e.g., gcash) that returns a redirect URL
+   * @param {Object} params - { amount, currency, type, description, successUrl, failedUrl, billing }
+   */
+  async createSource(params) {
+    if (!this.secretKey) {
+      console.warn('PayMongo secret key not configured, using mock checkout URL');
+      return {
+        success: true,
+        sourceId: `src_mock_${Date.now()}`,
+        checkoutUrl: `https://paymongo.test/mock_checkout/${Date.now()}`,
+        message: 'Mock source created'
+      };
+    }
+
+    const {
+      amount,
+      currency = 'PHP',
+      type = 'gcash',
+      description = '',
+      successUrl,
+      failedUrl,
+      billing
+    } = params;
+
+    const data = {
+      data: {
+        attributes: {
+          amount: Math.round(parseFloat(amount) * 100),
+          currency,
+          type,
+          description,
+          redirect: {
+            success: successUrl,
+            failed: failedUrl
+          },
+          billing: billing || undefined
+        }
+      }
+    };
+
+    try {
+      const result = await this.makeRequest('/sources', data, 'POST');
+      const source = result?.data;
+      const checkoutUrl = source?.attributes?.redirect?.checkout_url;
+      return {
+        success: true,
+        sourceId: source?.id,
+        checkoutUrl,
+        raw: result
+      };
+    } catch (error) {
+      console.error('Error creating PayMongo source:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to create source'
+      };
+    }
+  }
+
+  /**
+   * Retrieves a source to check status after redirect
+   * @param {string} sourceId
+   */
+  async getSource(sourceId) {
+    try {
+      const result = await this.makeRequest(`/sources/${sourceId}`, null, 'GET');
+      return {
+        success: true,
+        source: result?.data,
+        status: result?.data?.attributes?.status
+      };
+    } catch (error) {
+      console.error('Error fetching PayMongo source:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Creates a payment from a chargeable source
+   * @param {Object} params - { sourceId, amount, currency, description }
+   */
+  async createPaymentFromSource(params) {
+    if (!this.secretKey) {
+      return {
+        success: true,
+        payment: {
+          id: `pay_mock_${Date.now()}`,
+          attributes: { status: 'paid', amount: Math.round(parseFloat(params.amount) * 100) }
+        }
+      };
+    }
+
+    const { sourceId, amount, currency = 'PHP', description = '' } = params;
+    const data = {
+      data: {
+        attributes: {
+          amount: Math.round(parseFloat(amount) * 100),
+          currency,
+          description,
+          source: {
+            id: sourceId,
+            type: 'source'
+          }
+        }
+      }
+    };
+
+    try {
+      const result = await this.makeRequest('/payments', data, 'POST');
+      return { success: true, payment: result?.data };
+    } catch (error) {
+      console.error('Error creating PayMongo payment:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Creates a PayMongo Payment Link and returns its checkout URL
+   * Note: Running this on the client exposes your secret key. Prefer a backend in production.
+   * @param {Object} params - { amount, description, remarks, paymentMethodTypes, metadata, successUrl, failedUrl }
+   */
+  async createPaymentLink(params) {
+    if (!this.secretKey) {
+      return {
+        success: true,
+        linkId: `link_mock_${Date.now()}`,
+        checkoutUrl: `https://paymongo.test/mock_link/${Date.now()}`,
+        message: 'Mock payment link created'
+      };
+    }
+
+    const {
+      amount,
+      description = '',
+      remarks = '',
+      paymentMethodTypes = ['gcash', 'card'],
+      metadata,
+      successUrl,
+      failedUrl
+    } = params;
+
+    const data = {
+      data: {
+        attributes: {
+          amount: Math.round(parseFloat(amount) * 100),
+          currency: 'PHP',
+          description,
+          remarks,
+          payment_method_types: paymentMethodTypes,
+          metadata: metadata || undefined,
+          // Redirect URLs may not be honored by all accounts; safe to include
+          redirect: (successUrl || failedUrl)
+            ? { success: successUrl, failed: failedUrl }
+            : undefined
+        }
+      }
+    };
+
+    try {
+      const result = await this.makeRequest('/links', data, 'POST');
+      const link = result?.data;
+      const checkoutUrl = link?.attributes?.checkout_url;
+      return {
+        success: true,
+        linkId: link?.id,
+        checkoutUrl,
+        raw: result
+      };
+    } catch (error) {
+      console.error('Error creating PayMongo payment link:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Fetch a PayMongo Payment Link by id
+   */
+  async getPaymentLink(linkId) {
+    try {
+      const result = await this.makeRequest(`/links/${linkId}`, null, 'GET');
+      return { success: true, link: result?.data };
+    } catch (error) {
+      console.error('Error fetching PayMongo payment link:', error);
+      return { success: false, error: error.message };
     }
   }
 

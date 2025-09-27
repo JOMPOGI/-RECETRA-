@@ -14,6 +14,8 @@ import ProfileScreen from './screens/ProfileScreen';
 import UserManagementScreen from './screens/UserManagementScreen';
 import TemplateManagementScreen from './screens/TemplateManagementScreen';
 import PaymentGatewayScreen from './screens/PaymentGatewayScreen';
+import PaymentGatewayScreenSuccess from './screens/PaymentGatewayScreenSuccess';
+import PaymentGatewayScreenCancel from './screens/PaymentGatewayScreenCancel';
 import TransactionArchiveScreen from './screens/TransactionArchiveScreen';
 
 const AppContent = () => {
@@ -76,6 +78,8 @@ const AppContent = () => {
           <>
             <Route path="/viewer" element={<ViewerDashboard />} />
             <Route path="/viewer/payment" element={<PaymentGatewayScreen />} />
+            <Route path="/viewer/payment/success" element={<PaymentGatewayScreenSuccess />} />
+            <Route path="/viewer/payment/cancel" element={<PaymentGatewayScreenCancel />} />
             <Route path="/viewer/verify" element={<ReceiptVerificationScreen />} />
             <Route path="/viewer/faq" element={<FAQChatbotScreen />} />
             <Route path="/viewer/profile" element={<ProfileScreen />} />

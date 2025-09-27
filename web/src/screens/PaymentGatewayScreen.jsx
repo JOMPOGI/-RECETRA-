@@ -4,8 +4,11 @@ import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { mockOrganizations, mockCategories, addReceipt } from '../data/mockData';
 import { emailService } from '../services/emailService';
+import { paymongoService } from '../services/paymongoService';
+import { useNavigate } from 'react-router-dom';
 import ReceiptTemplate from '../components/ReceiptTemplate';
 import qrcode from 'qrcode';
+import { Link } from 'react-router-dom';
 
 /**
  * Payment Gateway Screen Component
@@ -19,6 +22,7 @@ import qrcode from 'qrcode';
  */
 const PaymentGatewayScreen = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [paymentData, setPaymentData] = useState({
     organization: '',
     category: '',
@@ -42,129 +46,82 @@ const PaymentGatewayScreen = () => {
     setIsProcessing(true);
 
     try {
-      // TODO: REAL PAYMONGO INTEGRATION
-      // 1. Create payment intent with PayMongo
-      // const paymentIntent = await paymongo.createPaymentIntent({
-      //   amount: parseFloat(paymentData.amount) * 100, // Convert to centavos
-      //   currency: 'PHP',
-      //   description: paymentData.purpose,
-      //   // Add your PayMongo API key here
-      //   apiKey: 'YOUR_PAYMONGO_SECRET_KEY'
-      // });
-      
-      // 2. Redirect to PayMongo payment page or show payment form
-      // 3. Handle payment success/failure callbacks
-      // 4. Generate receipt only after successful payment
+      // Persist minimal fields needed after redirect
+      sessionStorage.setItem('pg_form', JSON.stringify(paymentData));
 
-      // For now, simulate payment processing
-      console.log('🔄 Simulating PayMongo payment processing...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const origin = window.location.origin;
+      const successUrl = `${origin}/viewer/payment/success`;
+      const failedUrl = `${origin}/viewer/payment/cancel`;
 
-      // Generate unique receipt number
-      const receiptNumber = `OR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
-      
-      // Generate QR code data with receipt details for verification
-      const qrCodeData = JSON.stringify({
-        receiptNumber,
-        amount: parseFloat(paymentData.amount),
-        payer: paymentData.payerName,
-        organization: paymentData.organization,
-        purpose: paymentData.purpose,
-        timestamp: Date.now()
+      // Prefer Payment Links so PayMongo hosts the details page, then fall back to Sources
+      const link = await paymongoService.createPaymentLink({
+        amount: paymentData.amount,
+        description: paymentData.purpose,
+        remarks: `${paymentData.organization} • ${paymentData.category}`,
+        paymentMethodTypes: ['gcash', 'card'],
+        metadata: {
+          payer_name: paymentData.payerName,
+          payer_email: paymentData.payerEmail,
+          organization: paymentData.organization,
+          category: paymentData.category
+        },
+        successUrl,
+        failedUrl
       });
 
-      // Generate receipt with QR code
-      const receipt = {
-        id: `receipt_${Date.now()}`,
-        receiptNumber,
-        payer: paymentData.payerName,
-        payerEmail: paymentData.payerEmail,
-        amount: parseFloat(paymentData.amount),
-        purpose: paymentData.purpose,
-        category: paymentData.category,
-        organization: paymentData.organization,
-        issuedBy: user?.fullName || 'PayMongo Gateway',
-        issuedAt: new Date().toISOString(),
-        templateId: 'digital_payment',
-        qrCode: qrCodeData,
-        paymentStatus: 'completed',
-        emailStatus: 'pending',
-        isDigital: true,
-      };
+      if (link?.success && link.checkoutUrl) {
+        const linkId = link.linkId || '';
+        sessionStorage.setItem('pg_link_id', linkId);
+        // Open PayMongo hosted page in a new tab so this tab can auto-continue
+        window.open(link.checkoutUrl, '_blank', 'noopener,noreferrer');
 
-      // Add receipt to system
-      addReceipt(receipt);
+        // Poll payment link status until paid, then navigate to success
+        const start = Date.now();
+        const timeoutMs = 3 * 60 * 1000; // 3 minutes
+        const intervalMs = 2500;
 
-      // Send email to payer automatically
-      if (paymentData.payerEmail) {
-        try {
-          // Generate QR code as data URL for email
-          const qrImageDataUrl = await qrcode.toDataURL(receipt.qrCode, { 
-            errorCorrectionLevel: 'H',
-            width: 120,
-            margin: 1
-          });
-
-          // Generate receipt HTML for email
-          const receiptHtml = ReactDOMServer.renderToStaticMarkup(
-            <ReceiptTemplate 
-              receipt={receipt} 
-              organization={receipt.organization}
-              paymentMethod="Online"
-              inlineEmail={true}
-              qrImageDataUrl={qrImageDataUrl}
-              logoUrl="https://imgur.com/a/placeholder.png"
-            />
-          );
-
-          const emailResult = await emailService.sendReceiptEmail(
-            {
-              html: receiptHtml,
-              amount_formatted: `₱${receipt.amount.toLocaleString()}`,
-              date_formatted: new Date(receipt.issuedAt).toLocaleString(),
-              customerName: receipt.payer
-            },
-            paymentData.payerEmail,
-            {
-              subject: `Receipt ${receiptNumber}`,
-              supportContact: 'support@yourdomain.com',
-              customerName: receipt.payer
+        const poll = async () => {
+          try {
+            const res = await paymongoService.getPaymentLink(linkId);
+            const paid = res?.success && (res.link?.attributes?.status === 'paid' || res.link?.attributes?.paid);
+            if (paid) {
+              navigate('/viewer/payment/success');
+              return;
             }
-          );
-          
-          if (emailResult.success) {
-            console.log('📧 PayMongo receipt email sent successfully to:', paymentData.payerEmail);
-            receipt.emailStatus = 'sent';
+          } catch {}
+          if (Date.now() - start < timeoutMs) {
+            setTimeout(poll, intervalMs);
           } else {
-            console.error('❌ Failed to send PayMongo receipt email:', emailResult.error);
-            receipt.emailStatus = 'failed';
+            setPaymentResult({ success: false, message: 'Payment not completed. Please finish in the PayMongo tab.' });
           }
-        } catch (emailError) {
-          console.error('❌ Email service error:', emailError);
-          receipt.emailStatus = 'failed';
-        }
+        };
+        setTimeout(poll, intervalMs);
+        return;
       }
 
-      setPaymentResult({
-        success: true,
-        receipt,
-        message: 'Payment successful through PayMongo! Digital receipt has been generated and sent to your email.',
+      // Fallback to GCash Source flow if Payment Link creation fails
+      const billing = {
+        name: paymentData.payerName,
+        email: paymentData.payerEmail,
+        address: { line1: 'N/A' }
+      };
+      const src = await paymongoService.createSource({
+        amount: paymentData.amount,
+        currency: 'PHP',
+        type: 'gcash',
+        description: paymentData.purpose,
+        successUrl,
+        failedUrl,
+        billing
       });
-
-      // Reset form
-      setPaymentData({
-        organization: '',
-        category: '',
-        amount: '',
-        purpose: '',
-        payerName: '',
-        payerEmail: '',
-      });
+      if (!src.success) throw new Error(src.error || 'Failed to initialize payment');
+      if (src.sourceId) sessionStorage.setItem('pg_source_id', src.sourceId);
+      window.location.href = src.checkoutUrl;
 
     } catch (error) {
       setPaymentResult({
         success: false,
-        message: 'Payment failed. Please try again or contact support.',
+        message: error?.message || 'Payment failed. Please try again or contact support.',
       });
     } finally {
       setIsProcessing(false);
