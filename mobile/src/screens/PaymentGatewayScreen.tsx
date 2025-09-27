@@ -89,6 +89,17 @@ const PaymentGatewayScreen = ({ navigation }: any) => {
     }
     return true;
   };
+  const generateReceiptHtml = (receipt: any): string => {
+  return `
+    <table style="width:100%; border-collapse:collapse;">
+      <tr><th style="text-align:left;">Receipt No.</th><td>${receipt.receiptNumber}</td></tr>
+      <tr><th style="text-align:left;">Customer</th><td>${receipt.payer}</td></tr>
+      <tr><th style="text-align:left;">Amount</th><td>₱${receipt.amount.toFixed(2)}</td></tr>
+      <tr><th style="text-align:left;">Purpose</th><td>${receipt.purpose}</td></tr>
+      <tr><th style="text-align:left;">Date</th><td>${new Date(receipt.issuedAt).toLocaleDateString()}</td></tr>
+    </table>
+  `;
+};
 
   // Payment processing
   const handlePaymentSubmit = async () => {
@@ -133,13 +144,23 @@ const PaymentGatewayScreen = ({ navigation }: any) => {
         const newReceipt = addReceipt(receiptData);
 
         // Send email notification
-        let emailStatus = 'failed';
-        try {
-          const emailResult = await emailService.sendReceiptEmail(newReceipt, paymentData.payerEmail);
-          emailStatus = emailResult.success ? 'sent' : 'failed';
-        } catch (emailError) {
-          console.error('Email sending failed:', emailError);
-        }
+        // Send email notification
+let emailStatus = 'failed';
+try {
+  const emailResult = await emailService.sendReceiptEmail({
+    customer_name: newReceipt.payer,
+    amount_formatted: `₱${(Number(newReceipt.amount) || 0).toFixed(2)}`,
+    date_formatted: new Date(newReceipt.issuedAt).toLocaleDateString('en-PH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    }),
+    receipt_html: generateReceiptHtml(newReceipt)
+  }, paymentData.payerEmail);
+  emailStatus = emailResult.success ? 'sent' : 'failed';
+} catch (emailError) {
+  console.error('Email sending failed:', emailError);
+}
 
         // Update receipt with email status
         newReceipt.emailStatus = emailStatus as 'sent' | 'failed';

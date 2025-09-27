@@ -1,5 +1,8 @@
 {
   "dependencies": {
-    "expo": "^54.0.9"
+    "@emailjs/nodejs": "^5.0.2",
+    "cors": "^2.8.5",
+    "expo": "^54.0.9",
+    "express": "^5.1.0"
   }
 }
