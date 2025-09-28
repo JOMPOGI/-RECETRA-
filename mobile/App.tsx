@@ -15,6 +15,9 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import UserManagementScreen from './src/screens/UserManagementScreen';
 import TemplateManagementScreen from './src/screens/TemplateManagementScreen';
 import PaymentGatewayScreen from './src/screens/PaymentGatewayScreen';
+import PaymentDetailsScreen from './src/screens/PaymentDetailsScreen';
+import PaymentGatewayScreenSuccess from './src/screens/PaymentGatewayScreenSuccess';
+import PaymentGatewayScreenCancel from './src/screens/PaymenGatewayScreenCancel';
 import TransactionArchiveScreen from './src/screens/TransactionArchiveScreen';
 import { View, Image, StyleSheet, Animated, ImageBackground } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -35,6 +38,15 @@ type RootStackParamList = {
   IssueReceipt: undefined;
   TransactionArchive: undefined;
   PaymentGateway: undefined;
+  PaymentDetails: {
+    paymentData: any;
+    checkoutUrl: string;
+    linkId: string;
+  };
+  PaymentGatewayScreenSuccess: {
+    receipt?: any;
+  };
+  PaymentGatewayScreenCancel: undefined;
   ViewerDashboard: undefined;
 };
 
@@ -169,6 +181,9 @@ const AppContent: React.FC = () => {
           <>
             <Stack.Screen name="ViewerDashboard" component={ViewerDashboard} />
             <Stack.Screen name="PaymentGateway" component={PaymentGatewayScreen} />
+            <Stack.Screen name="PaymentDetails" component={PaymentDetailsScreen} />
+            <Stack.Screen name="PaymentGatewayScreenSuccess" component={PaymentGatewayScreenSuccess} />
+            <Stack.Screen name="PaymentGatewayScreenCancel" component={PaymentGatewayScreenCancel} />
             <Stack.Screen name="ReceiptVerification" component={ReceiptVerificationScreen} />
             <Stack.Screen name="FAQChatbot" component={FAQChatbotScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />

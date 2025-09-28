@@ -13,8 +13,6 @@ import { mockOrganizations, mockCategories, addReceipt } from '../data/mockData'
 import { paymongoService } from '../services/paymongoService';
 import { emailService } from '../services/emailService';
 import ReceiptTemplate from '../components/ReceiptTemplate';
-import QRCode from 'react-native-qrcode-svg';
-import { Asset } from 'expo-asset';
 
 const PaymentGatewayScreen = ({ navigation }: any) => {
   const { user } = useAuth();
@@ -91,308 +89,92 @@ const PaymentGatewayScreen = ({ navigation }: any) => {
     }
     return true;
   };
-  // Function to convert asset to base64
-  const getAssetBase64 = async (assetPath: string): Promise<string> => {
-    try {
-      const asset = Asset.fromModule(require('../../assets/Logo_with_Color.png'));
-      await asset.downloadAsync();
-      
-      if (asset.localUri) {
-        // For React Native, we need to use a different approach
-        // Since we can't easily convert to base64 in React Native,
-        // we'll use a hardcoded base64 string of your logo
-        // You can convert your Logo_with_Color.png to base64 using an online converter
-        // and replace this placeholder with the actual base64 string
-        
-        // Placeholder base64 - replace with your actual logo base64
-        const logoBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-        return logoBase64;
-      }
-      
-      return '';
-    } catch (error) {
-      console.error('Error loading asset:', error);
-      return '';
-    }
-  };
+  const generateReceiptHtml = (receipt: any): string => {
+  return `
+    <table style="width:100%; border-collapse:collapse;">
+      <tr><th style="text-align:left;">Receipt No.</th><td>${receipt.receiptNumber}</td></tr>
+      <tr><th style="text-align:left;">Customer</th><td>${receipt.payer}</td></tr>
+      <tr><th style="text-align:left;">Amount</th><td>₱${receipt.amount.toFixed(2)}</td></tr>
+      <tr><th style="text-align:left;">Purpose</th><td>${receipt.purpose}</td></tr>
+      <tr><th style="text-align:left;">Date</th><td>${new Date(receipt.issuedAt).toLocaleDateString()}</td></tr>
+    </table>
+  `;
+};
 
-  // Function to generate QR code as base64
-  const generateQRCodeBase64 = async (data: string): Promise<string> => {
-    try {
-      // For now, we'll use a simple placeholder approach
-      // In a real implementation, you'd use a QR code library that works in React Native
-      // or generate the QR code on the server side
-      console.log('QR Code data:', data);
-      return '';
-    } catch (error) {
-      console.error('Error generating QR code:', error);
-      return '';
-    }
-  };
-
-  const generateReceiptHtml = async (receipt: any): Promise<string> => {
-    // Convert amount to words
-    const convertAmountToWords = (amount: number): string => {
-      const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
-      const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-      const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-      
-      if (amount === 0) return 'Zero';
-      if (amount < 10) return ones[amount];
-      if (amount < 20) return teens[amount - 10];
-      if (amount < 100) return tens[Math.floor(amount / 10)] + (amount % 10 ? '-' + ones[amount % 10] : '');
-      if (amount < 1000) {
-        const hundreds = Math.floor(amount / 100);
-        const remainder = amount % 100;
-        return ones[hundreds] + ' Hundred' + (remainder ? ' ' + convertAmountToWords(remainder) : '');
-      }
-      if (amount < 1000000) {
-        const thousands = Math.floor(amount / 1000);
-        const remainder = amount % 1000;
-        return convertAmountToWords(thousands) + ' Thousand' + (remainder ? ' ' + convertAmountToWords(remainder) : '');
-      }
-      return 'Amount too large';
-    };
-
-    const formatDate = (dateString: string): string => {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { 
-        month: 'numeric', 
-        day: 'numeric', 
-        year: '2-digit' 
-      });
-    };
-
-    const getOrganizationDetails = (orgName: string) => {
-      const orgs: { [key: string]: { fullName: string } } = {
-        'Computer Science Society': { fullName: 'Computer Science Society - NU Dasma' },
-        'Student Council': { fullName: 'Student Council - NU Dasma' },
-        'Engineering Society': { fullName: 'Engineering Society - NU Dasma' },
-        'NU Dasma Admin': { fullName: 'NU Dasma Administration' }
-      };
-      return orgs[orgName] || { fullName: `${orgName || 'Organization'} - NU Dasma` };
-    };
-
-    const orgDetails = getOrganizationDetails(receipt.organization);
-    const amountInWords = convertAmountToWords(receipt.amount) + ' Pesos';
-    const paymentMethod = receipt.paymentMethod === 'Paymongo' ? 'Online' : 'Cash';
-
-    // Generate logo and QR code base64
-    const logoBase64 = await getAssetBase64('../../assets/Logo_with_Color.png');
-    const qrCodeBase64 = await generateQRCodeBase64(receipt.receiptNumber);
-
-    return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Digital Receipt - ${receipt.receiptNumber}</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 20px;
-          background-color: #f5f5f5;
-          line-height: 1.4;
-        }
-        .receipt-container {
-          max-width: 500px;
-          margin: 0 auto;
-          background-color: white;
-          border: 2px dashed #ccc;
-          border-radius: 8px;
-          padding: 20px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .header {
-          text-align: center;
-          margin-bottom: 15px;
-        }
-        .logo {
-          display: inline-block;
-          background-color: #4CAF50;
-          color: white;
-          padding: 8px 16px;
-          border-radius: 4px;
-          font-weight: bold;
-          font-size: 16px;
-          letter-spacing: 1px;
-          margin-bottom: 10px;
-        }
-        .receipt-title {
-          font-size: 20px;
-          font-weight: bold;
-          color: #000;
-          text-align: center;
-          text-decoration: underline;
-          margin: 10px 0 15px 0;
-        }
-        .receipt-header {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 15px;
-          align-items: center;
-        }
-        .receipt-number {
-          color: #d32f2f;
-          font-weight: bold;
-          font-size: 16px;
-        }
-        .receipt-number-value {
-          color: #000;
-          font-weight: bold;
-          text-decoration: underline;
-        }
-        .receipt-date {
-          color: #000;
-          font-weight: bold;
-          font-size: 16px;
-        }
-        .receipt-date-value {
-          color: #000;
-          font-weight: bold;
-          text-decoration: underline;
-        }
-        .acknowledgment-text {
-          margin: 15px 0;
-          font-size: 16px;
-          line-height: 1.5;
-        }
-        .underlined {
-          font-weight: bold;
-          text-decoration: underline;
-          color: #000;
-        }
-        .payment-details {
-          margin: 15px 0;
-        }
-        .payment-details-label {
-          font-size: 15px;
-          color: #000;
-          font-weight: bold;
-          margin-bottom: 8px;
-        }
-        .payment-options {
-          display: flex;
-          gap: 20px;
-        }
-        .checkbox {
-          font-size: 16px;
-          color: #000;
-          font-weight: bold;
-        }
-        .received-by {
-          margin: 15px 0;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .received-by-label {
-          font-size: 16px;
-          color: #000;
-          font-weight: bold;
-        }
-        .received-by-value {
-          font-size: 16px;
-          color: #000;
-          font-weight: bold;
-          text-decoration: underline;
-        }
-        .qr-section {
-          text-align: center;
-          margin-top: 20px;
-          padding: 15px;
-          border: 2px dashed #ccc;
-          border-radius: 8px;
-          background-color: #f9f9f9;
-        }
-        .qr-container {
-          margin-bottom: 8px;
-        }
-        .qr-note {
-          font-size: 12px;
-          color: #666;
-          font-style: italic;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="receipt-container">
-        <!-- Header with Logo -->
-        <div class="header">
-          <img src="data:image/png;base64,${logoBase64}" alt="RECETRA Logo" style="height: 50px; width: auto; margin-bottom: 15px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-          <div class="logo" style="display: none; background-color: #4CAF50; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold; font-size: 16px; letter-spacing: 1px; margin-bottom: 10px;">RECETRA</div>
-        </div>
-
-        <!-- Receipt Title -->
-        <div class="receipt-title">ACKNOWLEDGMENT RECEIPT</div>
-
-        <!-- Receipt Header -->
-        <div class="receipt-header">
-          <div class="receipt-number">
-            NO: <span class="receipt-number-value">${receipt.receiptNumber}</span>
-          </div>
-          <div class="receipt-date">
-            Date: <span class="receipt-date-value">${formatDate(receipt.issuedAt)}</span>
-          </div>
-        </div>
-
-        <!-- Main Acknowledgment Text -->
-        <div class="acknowledgment-text">
-          <p>
-            This is to acknowledge that <span class="underlined">${orgDetails.fullName}</span> received from <span class="underlined">${receipt.payer}</span> the amount of <span class="underlined">${amountInWords}</span> <span class="underlined">(P ${receipt.amount.toLocaleString()})</span> as payment for <span class="underlined">${receipt.purpose}</span>.
-          </p>
-        </div>
-
-        <!-- Payment Details -->
-        <div class="payment-details">
-          <div class="payment-details-label">Payment Details:</div>
-          <div class="payment-options">
-            <span class="checkbox">${paymentMethod === 'Cash' ? '☑' : '☐'} Cash</span>
-            <span class="checkbox">${paymentMethod === 'Online' ? '☑' : '☐'} Online</span>
-          </div>
-        </div>
-
-        <!-- Received By Section -->
-        <div class="received-by">
-          <span class="received-by-label">Received By:</span>
-          <span class="received-by-value">${receipt.issuedBy || 'System'}</span>
-        </div>
-
-        <!-- QR Code Section -->
-        <div class="qr-section">
-          <div class="qr-container">
-            <div style="display: inline-block; width: 120px; height: 120px; background-color: #f0f0f0; border: 2px solid #ccc; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #666;">
-              QR Code<br/>${receipt.receiptNumber}
-            </div>
-          </div>
-          <div class="qr-note">Scan this QR code to verify receipt authenticity</div>
-        </div>
-      </div>
-    </body>
-    </html>
-    `;
-  };
-
-  // Payment processing
+  /**
+   * Handles payment submission
+   * Processes payment through PayMongo and generates receipt with QR code and email
+   */
   const handlePaymentSubmit = async () => {
     if (!validatePaymentForm()) return;
 
     setIsProcessing(true);
+
     try {
-      // Process payment through PayMongo
-      const paymentResult = await paymongoService.processPayment({
+      // Persist minimal fields needed after redirect
+      // Note: In mobile, we'll use AsyncStorage or local state instead of sessionStorage
+      
+      // Create payment link (similar to web implementation)
+      const link = await paymongoService.createPaymentLink({
         amount: Number(paymentData.amount),
-        currency: 'PHP',
-        description: `${paymentData.purpose} - ${paymentData.organization}`,
-        payerName: paymentData.payerName,
-        payerEmail: paymentData.payerEmail,
-        organization: paymentData.organization,
-        category: paymentData.category
+        description: paymentData.purpose,
+        remarks: `${paymentData.organization} • ${paymentData.category}`,
+        paymentMethodTypes: ['gcash', 'card'],
+        metadata: {
+          payer_name: paymentData.payerName,
+          payer_email: paymentData.payerEmail,
+          organization: paymentData.organization,
+          category: paymentData.category
+        }
       });
 
-      if (paymentResult.success) {
+      if (link?.success && link.checkoutUrl) {
+        const linkId = link.linkId || '';
+        
+        // Store payment data for later use
+        const paymentDataToStore = {
+          ...paymentData,
+          linkId: linkId,
+          checkoutUrl: link.checkoutUrl,
+          timestamp: Date.now()
+        };
+        
+        // In mobile, we'll navigate to a payment details screen that shows the PayMongo checkout
+        // and simulates the payment process
+        console.log('📱 Mobile: Redirecting to PayMongo payment details');
+        
+        // Navigate to payment details screen with the payment data
+        navigation.navigate('PaymentDetails', {
+          paymentData: paymentDataToStore,
+          checkoutUrl: link.checkoutUrl,
+          linkId: linkId
+        });
+        
+        return;
+
+      } else {
+        // Fallback to GCash Source flow if Payment Link creation fails
+        const billing = {
+          name: paymentData.payerName,
+          email: paymentData.payerEmail,
+          address: { line1: 'N/A' }
+        };
+        
+        const src = await paymongoService.createSource({
+          amount: Number(paymentData.amount),
+          currency: 'PHP',
+          type: 'gcash',
+          description: paymentData.purpose,
+          billing
+        });
+        
+        if (!src.success) {
+          throw new Error(src.error || 'Failed to initialize payment');
+        }
+
+        // Simulate successful payment for mobile demo
+        console.log('📱 Mobile: Simulating GCash payment flow');
+        
         // Generate receipt number
         const currentYear = new Date().getFullYear();
         const receiptCount = Math.floor(Math.random() * 9999) + 1;
@@ -402,25 +184,27 @@ const PaymentGatewayScreen = ({ navigation }: any) => {
         const receiptData = {
           receiptNumber,
           payer: paymentData.payerName,
+          payerEmail: paymentData.payerEmail,
           amount: Number(paymentData.amount),
           purpose: paymentData.purpose,
           category: paymentData.category,
           organization: paymentData.organization,
-          issuedBy: user?.fullName || 'System',
+          issuedBy: user?.fullName || 'PayMongo Gateway',
           issuedAt: new Date().toISOString(),
           templateId: paymentData.template,
           emailStatus: 'pending' as const,
           paymentStatus: 'completed' as const,
-          paymentMethod: 'Paymongo' as const,
+          paymentMethod: 'GCash' as const,
+          isDigital: true,
+          providerRef: src.sourceId
         };
 
         // Add receipt to mock data
         const newReceipt = addReceipt(receiptData);
 
-        // Send email notification with comprehensive HTML template
+        // Send email notification
         let emailStatus = 'failed';
         try {
-          const receiptHtml = await generateReceiptHtml(newReceipt);
           const emailResult = await emailService.sendReceiptEmail({
             customer_name: newReceipt.payer,
             amount_formatted: `₱${(Number(newReceipt.amount) || 0).toFixed(2)}`,
@@ -429,7 +213,7 @@ const PaymentGatewayScreen = ({ navigation }: any) => {
               month: 'short',
               day: 'numeric'
             }),
-            receipt_html: receiptHtml
+            receipt_html: generateReceiptHtml(newReceipt)
           }, paymentData.payerEmail);
           emailStatus = emailResult.success ? 'sent' : 'failed';
         } catch (emailError) {
@@ -444,22 +228,16 @@ const PaymentGatewayScreen = ({ navigation }: any) => {
           success: true,
           message: 'Payment processed successfully! Receipt has been generated and sent to your email.',
           receipt: newReceipt,
-          paymentIntent: paymentResult.paymentIntent,
-          clientKey: paymentResult.clientKey
-        });
-
-      } else {
-        setPaymentResult({
-          success: false,
-          message: paymentResult.error || 'Payment failed',
-          error: 'payment'
+          paymentIntent: src,
+          clientKey: src.sourceId
         });
       }
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('Payment error:', error);
       setPaymentResult({
         success: false,
-        message: 'Payment processing failed. Please try again.',
+        message: error?.message || 'Payment processing failed. Please try again.',
         error: 'payment'
       });
     } finally {
@@ -478,7 +256,7 @@ const PaymentGatewayScreen = ({ navigation }: any) => {
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.subtitle}>Configure your payment and proceed to PayMongo</Text>
+          <Text style={styles.subtitle}>Make secure payments through PayMongo and receive digital receipts</Text>
           
           {/* Payment Configuration Form */}
           <View style={styles.formContainer}>
@@ -619,7 +397,7 @@ const PaymentGatewayScreen = ({ navigation }: any) => {
               disabled={isProcessing}
             >
               <Text style={styles.submitButtonText}>
-                {isProcessing ? 'Processing...' : 'Proceed to PayMongo Payment'}
+                {isProcessing ? 'Processing Payment...' : 'Pay with PayMongo'}
               </Text>
             </TouchableOpacity>
           </View>
