@@ -37,6 +37,25 @@ class EmailService {
 		const dateFormatted = receipt?.dateFormatted || receipt?.date_formatted || receipt?.date || '';
 		const receiptHtml = receipt?.html || receipt?.receipt_html || '';
 
+		// Create comprehensive email content with introduction and receipt
+		const emailContent = `
+			<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+				<div style="margin-bottom: 30px;">
+					<p style="font-size: 16px; color: #333; margin-bottom: 10px;">Dear ${customerName},</p>
+					<p style="font-size: 16px; color: #333; margin-bottom: 10px;">
+						We're pleased to inform you that your payment of ${amountFormatted} on ${dateFormatted} has been successfully processed.
+					</p>
+					<p style="font-size: 16px; color: #333; margin-bottom: 20px;">
+						Thank you for your prompt payment. If you have any questions or concerns please contact us.
+					</p>
+				</div>
+				
+				<div style="border-top: 2px solid #eee; padding-top: 20px;">
+					${receiptHtml}
+				</div>
+			</div>
+		`;
+
 		const templateParams = {
 			to_email: payerEmail,
 			subject,
@@ -44,7 +63,7 @@ class EmailService {
 			amount_formatted: amountFormatted,
 			date_formatted: dateFormatted,
 			support_contact: supportContact,
-			receipt_html: receiptHtml
+			receipt_html: emailContent
 		};
 
 		try {

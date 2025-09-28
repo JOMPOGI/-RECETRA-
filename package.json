@@ -4,5 +4,9 @@
     "cors": "^2.8.5",
     "expo": "^54.0.9",
     "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.10",
+    "typescript": "~5.9.2"
   }
 }
