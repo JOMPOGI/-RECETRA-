@@ -49,7 +49,7 @@ const ReceiptTemplate = ({ receipt, organization, paymentMethod = 'Cash' }) => {
     <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false} horizontal={false}>
       <View style={styles.receiptContainer}>
         <View style={styles.receipt}>
-          {/* Header with Logo */}
+          {/* Header with RECETRA Logo Only (match web style) */}
           <View style={styles.header}>
             <Image 
               source={require('../../assets/Logo_with_Color.png')}
@@ -154,19 +154,19 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 8,
-    marginTop: 0,
+    marginBottom: 0,
+    marginTop: -24,
   },
   logo: {
-    height: 48,
-    width: 110,
+    height: 140,
+    width: 140,
     marginBottom: 0,
     alignSelf: 'center',
   },
   titleSection: {
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: -40,
+    marginBottom: 24,
   },
   receiptTitle: {
     fontSize: 22,
