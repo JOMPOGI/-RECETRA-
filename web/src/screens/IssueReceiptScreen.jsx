@@ -293,7 +293,7 @@ const IssueReceiptScreen = () => {
               paymentMethod="Cash"
               inlineEmail={true}
               qrImageDataUrl={qrImageDataUrl}
-              logoUrl="https://via.placeholder.com/280x280/4CAF50/FFFFFF?text=RECETRA"
+              logoUrl="https://raw.githubusercontent.com/JOMPOGI/-RECETRA-/main/web/assets/Logo_with_Color.png"
             />
           );
 
