@@ -1,5 +1,6 @@
 import React from 'react';
 import QRCode from 'qrcode.react';
+const LOCAL_LOGO_URL = new URL('../../assets/Logo_with_Color.png', import.meta.url).href;
 
 /**
  * RECETRA Receipt Template Component
@@ -85,38 +86,68 @@ const ReceiptTemplate = ({ receipt, organization, paymentMethod = 'Cash', inline
   const orgDetails = getOrganizationDetails(organization || receipt.organization);
   const amountInWords = convertAmountToWords(receipt.amount) + ' Pesos';
 
+  // Email-safe spacing: reduce whitespace between logo and title for emails
+  const headerStyle = inlineEmail ? { ...styles.header, marginTop: '-10px', marginBottom: '-100px', lineHeight: '0' } : styles.header;
+  const logoStyle = inlineEmail ? { ...styles.logo, height: '170px', width: '170px', display: 'block', marginBottom: '0' } : styles.logo;
+  const logoSectionStyle = inlineEmail ? { ...styles.logoSection, display: 'flex', justifyContent: 'center' } : styles.logoSection;
+  // Pull the title upward but keep image visible in strict email clients
+  const titleSectionStyle = styles.titleSection;
+
   return (
     <div style={styles.receiptContainer}>
       <div className="receipt" style={styles.receipt}>
         {/* Header with RECETRA Logo Only */}
-        <div style={styles.header}>
-          <div style={styles.logoSection}>
-            {/* Use absolute logo URL when provided (email-safe) */}
-            {logoUrl ? (
+        <div style={headerStyle}>
+          {inlineEmail ? (
+            <table role="presentation" width="100%" style={{ borderCollapse: 'collapse', margin: 0, padding: 0 }}>
+              <tbody>
+                <tr>
+                  <td align="center" style={{ padding: 0 }}>
+                    <img 
+                      src={logoUrl || LOCAL_LOGO_URL}
+                      alt="RECETRA Logo" 
+                      style={{ ...logoStyle, display: 'block', margin: '0 auto' }}
+                      onError={(e) => {
+                        if (e.target.dataset.fallbackTried !== '1') {
+                          e.target.dataset.fallbackTried = '1';
+                          e.target.src = 'https://cdn.jsdelivr.net/gh/JOMPOGI/-RECETRA-/web/assets/Logo_with_Color.png';
+                        } else {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'block';
+                        }
+                      }}
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          ) : (
+            <div style={logoSectionStyle}>
+              {/* Use absolute logo URL when provided (email-safe) */}
               <img 
-                src={logoUrl}
+                src={logoUrl || LOCAL_LOGO_URL}
                 alt="RECETRA Logo" 
-                style={styles.logo}
-              />
-            ) : (
-              <img 
-                src="/assets/Logo_with_Color.png" 
-                alt="RECETRA Logo" 
-                style={styles.logo}
+                style={logoStyle}
                 onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
+                  // Try jsDelivr CDN mirror of the repo asset, then fall back to text
+                  if (e.target.dataset.fallbackTried !== '1') {
+                    e.target.dataset.fallbackTried = '1';
+                    e.target.src = 'https://cdn.jsdelivr.net/gh/JOMPOGI/-RECETRA-/web/assets/Logo_with_Color.png';
+                  } else {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'block';
+                  }
                 }}
               />
-            )}
-            <div style={{...styles.logoPlaceholder, display: 'none'}}>
-              <div style={styles.logoText}>RECETRA</div>
+              <div style={{...styles.logoPlaceholder, display: 'none'}}>
+                <div style={styles.logoText}>RECETRA</div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Receipt Title */}
-        <div style={styles.titleSection}>
+        <div style={titleSectionStyle}>
           <h2 style={styles.receiptTitle}>ACKNOWLEDGMENT RECEIPT</h2>
         </div>
 
@@ -172,7 +203,7 @@ const ReceiptTemplate = ({ receipt, organization, paymentMethod = 'Cash', inline
                   alt="Receipt QR"
                   width={120}
                   height={120}
-                  style={{ display: 'inline-block' }}
+                  style={{ display: 'block', margin: '0 auto' }}
                 />
               ) : (
                 <QRCode 
@@ -249,6 +280,13 @@ const styles = {
     fontSize: '28px',
     fontWeight: 'bold',
     letterSpacing: '3px'
+  },
+  logoTextOnly: {
+    color: '#4CAF50',
+    fontSize: '28px',
+    fontWeight: 'bold',
+    letterSpacing: '3px',
+    textAlign: 'center',
   },
   tagline: {
     fontSize: '14px',
@@ -399,6 +437,7 @@ const styles = {
   // QR Code Section Styles
   qrCodeSection: {
     textAlign: 'center',
+    display: 'block',
     marginTop: '30px',
     padding: '20px',
     border: '2px dashed #ccc',
@@ -406,14 +445,17 @@ const styles = {
     backgroundColor: '#f9f9f9'
   },
   qrCodeContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    marginBottom: '10px'
+    display: 'inline-block',
+    margin: '0 auto',
+    textAlign: 'center'
   },
   qrCodeNote: {
     fontSize: '12px',
     color: '#666',
-    fontStyle: 'italic'
+    fontStyle: 'italic',
+    display: 'block',
+    marginTop: '10px',
+    width: '100%'
   },
 };
 

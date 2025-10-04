@@ -112,7 +112,7 @@ const PaymentGatewayScreenSuccess = () => {
                 paymentMethod="Online"
                 inlineEmail={true}
                 qrImageDataUrl={qrImageDataUrl}
-                logoUrl="https://imgur.com/a/placeholder.png"
+                logoUrl="https://raw.githubusercontent.com/JOMPOGI/-RECETRA-/main/web/assets/Logo_with_Color.png"
               />
             );
 
